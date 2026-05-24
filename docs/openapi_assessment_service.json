@@ -1,0 +1,156 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Assessment Service API",
+    "version": "1.0.0",
+    "description": "Assessment and notification service handles LLM/rule-based candidate scoring, generating PDF assessment reports, and dispatching SMTP email invites and report alerts."
+  },
+  "servers": [
+    {
+      "url": "http://localhost/api",
+      "description": "API Gateway Server"
+    }
+  ],
+  "paths": {
+    "/reports": {
+      "get": {
+        "summary": "List all candidate assessment reports (HR only)",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Reports retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reports": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/AssessmentReport"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Not authenticated" },
+          "403": { "description": "Forbidden - requires HR role" }
+        }
+      }
+    },
+    "/reports/{applicationId}": {
+      "get": {
+        "summary": "Get an assessment report by candidate Application ID (HR only)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The unique ID of the application to fetch the report for"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Assessment report details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "report": {
+                          "$ref": "#/components/schemas/AssessmentReport"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Not authenticated" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Report not found for this application ID" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "AssessmentReport": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "6a0df8b346d2fb265c35dad1" },
+          "application_id": { "type": "string", "format": "uuid", "example": "5af7f8bd-eb53-474e-8109-0df31f5b8213" },
+          "session_id": { "type": "string", "format": "uuid", "example": "1c738cd4-e8ad-4349-a63d-d3876a9b5c0a" },
+          "scores": {
+            "type": "object",
+            "properties": {
+              "technical": { "type": "integer", "example": 90 },
+              "communication": { "type": "integer", "example": 85 },
+              "relevance": { "type": "integer", "example": 70 },
+              "overall": { "type": "integer", "example": 83 }
+            }
+          },
+          "summary": { "type": "string", "example": "The candidate performed exceptionally well across all dimensions." },
+          "strengths": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["Good grasp of the required technical stack.", "Clear and structured communication style."]
+          },
+          "weaknesses": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["No critical weaknesses identified."]
+          },
+          "recommendation": { "type": "string", "enum": ["ADVANCE_TO_NEXT_ROUND", "REJECT", "HOLD"], "example": "ADVANCE_TO_NEXT_ROUND" },
+          "generated_at": { "type": "string", "format": "date-time", "example": "2026-05-20T18:08:51.544Z" },
+          "reasoning": {
+            "type": "object",
+            "properties": {
+              "technical": { "type": "string", "example": "Candidate demonstrated solid technical knowledge..." },
+              "communication": { "type": "string", "example": "Clear and structured communication..." },
+              "relevance": { "type": "string", "example": "Some answers departed from the interviewer's queries..." }
+            }
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "quote": { "type": "string", "example": "Hello! I am Alice. I'm a Backend Developer with 5 years experience." },
+                "stage": { "type": "string", "example": "GREETING" },
+                "dimension": { "type": "string", "example": "technical" }
+              }
+            }
+          },
+          "detailed_feedback": { "type": "string", "example": "The candidate demonstrated an overall score of 83/100..." },
+          "scoring_method": { "type": "string", "enum": ["LLM", "RULE_BASED"], "example": "LLM" }
+        }
+      }
+    }
+  }
+}

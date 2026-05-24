@@ -1,0 +1,90 @@
+// Core Service — Prisma Schema
+// Database: PostgreSQL (core_db)
+// Source of truth for all Core Service tables
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+enum ApplicationStatus {
+  PENDING              // CV uploaded by HR, not yet processed
+  PROCESSING           // RAG service is extracting CV text + email
+  READY_FOR_INTERVIEW  // CV_READY_EVENT received, email extracted
+  CV_PARSE_FAILED      // CV parsing failed
+  INVITED              // HR sent interview invitation (magic link email)
+  INTERVIEWING         // Candidate clicked magic link, interview in progress
+  COMPLETED            // Interview finished, assessment done
+  REJECTED             // HR manually rejected
+  ARCHIVED             // HR manually archived
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String   @map("full_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  jobs         Job[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Job {
+  id           String    @id @default(uuid())
+  title        String
+  description  String
+  requirements String
+  status       JobStatus @default(DRAFT)
+  hrId         String    @map("hr_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  hr           User      @relation(fields: [hrId], references: [id])
+  applications Application[]
+
+  @@map("jobs")
+}
+
+model Application {
+  id              String            @id @default(uuid())
+  jobId           String            @map("job_id")
+  cvFilePath      String            @map("cv_file_path")
+  candidateEmail  String?           @map("candidate_email")
+  candidateName   String?           @map("candidate_name")
+  magicLinkToken  String?           @unique @map("magic_link_token")
+  isLinkUsed      Boolean           @default(false) @map("is_link_used")
+  status          ApplicationStatus @default(PENDING)
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  job             Job               @relation(fields: [jobId], references: [id])
+
+  @@unique([candidateEmail, jobId], name: "unique_candidate_per_job")
+  @@map("applications")
+}

@@ -1,0 +1,24 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'core-service'
+    static_configs:
+      - targets: ['core-service:3001']
+
+  - job_name: 'ai-service'
+    static_configs:
+      - targets: ['ai-service:3002']
+
+  - job_name: 'rag-service'
+    static_configs:
+      - targets: ['rag-service:3003']
+
+  - job_name: 'assessment-service'
+    static_configs:
+      - targets: ['assessment-service:3004']

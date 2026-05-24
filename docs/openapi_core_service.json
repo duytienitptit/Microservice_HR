@@ -1,0 +1,398 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Core Service API",
+    "version": "1.0.0",
+    "description": "Core recruitment service handles HR authentication, job postings CRUD, candidate application indexing, and CV storage management."
+  },
+  "servers": [
+    {
+      "url": "http://localhost/api",
+      "description": "API Gateway Server"
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "summary": "Register a new HR or Candidate user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password", "fullName"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "hr_test@example.com" },
+                  "password": { "type": "string", "minLength": 8, "example": "Password123!" },
+                  "fullName": { "type": "string", "example": "HR Recruiter" },
+                  "role": { "type": "string", "enum": ["HR", "CANDIDATE"], "default": "HR", "example": "HR" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string", "format": "uuid" },
+                            "email": { "type": "string" },
+                            "fullName": { "type": "string" },
+                            "role": { "type": "string" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error" },
+          "409": { "description": "Email already exists" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Login user to obtain access & refresh tokens",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "hr_test@example.com" },
+                  "password": { "type": "string", "example": "Password123!" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "accessToken": { "type": "string" },
+                        "refreshToken": { "type": "string" },
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string" },
+                            "email": { "type": "string" },
+                            "fullName": { "type": "string" },
+                            "role": { "type": "string" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Invalid credentials" },
+          "423": { "description": "Account locked (too many failed attempts)" }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "summary": "Refresh expired access token using a valid refresh token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["refreshToken"],
+                "properties": {
+                  "refreshToken": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tokens refreshed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "accessToken": { "type": "string" },
+                        "refreshToken": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Invalid or expired refresh token" }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "Logout user and revoke refresh token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["refreshToken"],
+                "properties": {
+                  "refreshToken": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logged out successfully"
+          },
+          "401": { "description": "Invalid refresh token" }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "summary": "Get current user profile information",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Profile data retrieved"
+          },
+          "401": { "description": "Not authenticated" }
+        }
+      }
+    },
+    "/jobs": {
+      "post": {
+        "summary": "Create a new job posting (HR only)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "description", "requirements"],
+                "properties": {
+                  "title": { "type": "string", "example": "Python Engineer" },
+                  "description": { "type": "string", "example": "Job description here" },
+                  "requirements": { "type": "string", "example": "Python, FastAPI, Postgres" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Job created successfully" },
+          "403": { "description": "Forbidden - requires HR role" }
+        }
+      },
+      "get": {
+        "summary": "List all open job postings (Public)",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Jobs retrieved successfully" }
+        }
+      }
+    },
+    "/jobs/me": {
+      "get": {
+        "summary": "List job postings created by the authenticated HR user",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List of owned jobs retrieved" }
+        }
+      }
+    },
+    "/jobs/{id}": {
+      "get": {
+        "summary": "Get a job posting by ID",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Job posting details" },
+          "404": { "description": "Job not found" }
+        }
+      },
+      "put": {
+        "summary": "Update an existing job posting (HR owner only)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "description": { "type": "string" },
+                  "requirements": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Job updated successfully" },
+          "403": { "description": "Forbidden - not the owner" },
+          "404": { "description": "Job not found" }
+        }
+      },
+      "delete": {
+        "summary": "Soft delete a job posting (HR owner only)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Job soft deleted" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/applications": {
+      "post": {
+        "summary": "Upload a candidate's CV PDF and create an application (HR only)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["job_id", "cv"],
+                "properties": {
+                  "job_id": { "type": "string", "format": "uuid" },
+                  "cv": { "type": "string", "format": "binary", "description": "PDF CV document" },
+                  "candidate_name": { "type": "string" },
+                  "candidate_email": { "type": "string", "format": "email" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "CV uploaded and processing triggered" },
+          "400": { "description": "File signature invalid or duplicate application" },
+          "507": { "description": "Storage limit exceeded" }
+        }
+      },
+      "get": {
+        "summary": "List all applications, optionally filtered by job_id (HR only)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "job_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "List of applications" }
+        }
+      }
+    },
+    "/applications/{id}": {
+      "get": {
+        "summary": "Get application details by ID (HR only)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Application details" },
+          "404": { "description": "Application not found" }
+        }
+      }
+    },
+    "/applications/{id}/status": {
+      "patch": {
+        "summary": "Manually update the status of an application (HR only)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["PENDING", "PROCESSING", "READY_FOR_INTERVIEW", "INVITED", "INTERVIEWING", "COMPLETED", "REJECTED", "ARCHIVED"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Status updated successfully" },
+          "400": { "description": "Invalid status transition" }
+        }
+      }
+    },
+    "/applications/{id}/invite": {
+      "post": {
+        "summary": "Send an interview invitation magic link to the candidate (HR only)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Invitation sent successfully" },
+          "400": { "description": "Invalid application status or missing candidate email" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
